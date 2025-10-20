@@ -4,14 +4,21 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { LayoutGrid, Table as TableIcon } from "lucide-react";
+import { LayoutGrid, Table as TableIcon, Settings, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ProductSize {
   id: string;
   sr_number: number;
   finished_size_inch: number;
   quantity: number;
+}
+
+interface SaleOrder {
+  id: string;
+  name: string;
+  color: string;
 }
 
 interface Process {
@@ -28,6 +35,8 @@ interface ProgressData {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [orders, setOrders] = useState<SaleOrder[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<string>("");
   const [sizes, setSizes] = useState<ProductSize[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
   const [progressData, setProgressData] = useState<ProgressData>({});
@@ -35,12 +44,24 @@ const Dashboard = () => {
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
   useEffect(() => {
-    loadData();
+    loadOrders();
   }, []);
+
+  useEffect(() => {
+    if (selectedOrder) loadData();
+  }, [selectedOrder]);
+
+  const loadOrders = async () => {
+    const { data } = await supabase.from("sale_orders").select("*");
+    if (data) {
+      setOrders(data);
+      if (data.length > 0) setSelectedOrder(data[0].id);
+    }
+  };
 
   const loadData = async () => {
     const [sizesRes, processesRes, progressRes] = await Promise.all([
-      supabase.from("product_sizes").select("*").order("sr_number"),
+      supabase.from("product_sizes").select("*").eq("sale_order_id", selectedOrder).order("sr_number"),
       supabase.from("processes").select("*").order("order_number"),
       supabase.from("progress_entries").select("*"),
     ]);
@@ -75,6 +96,7 @@ const Dashboard = () => {
   };
 
   const total = getTotalProgress();
+  const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
@@ -84,9 +106,21 @@ const Dashboard = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold text-foreground">Production Dashboard</h1>
-            <p className="text-muted-foreground">Flexible Drawcord - Navy</p>
+            {selectedOrderData && (
+              <p className="text-muted-foreground">
+                {selectedOrderData.name} - {selectedOrderData.color}
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/sale-orders")}>
+              <Settings className="h-4 w-4 mr-2" />
+              Manage Orders
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/worker-progress")}>
+              <Users className="h-4 w-4 mr-2" />
+              Worker Progress
+            </Button>
             <Button
               variant={viewMode === "grid" ? "default" : "outline"}
               size="icon"
@@ -104,6 +138,21 @@ const Dashboard = () => {
             <Button onClick={() => navigate("/entry")}>Add Progress</Button>
           </div>
         </div>
+
+        <Card className="p-4">
+          <Select value={selectedOrder} onValueChange={setSelectedOrder}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Select order" />
+            </SelectTrigger>
+            <SelectContent>
+              {orders.map((order) => (
+                <SelectItem key={order.id} value={order.id}>
+                  {order.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Card>
 
         <Card className="p-6">
           <h2 className="text-2xl font-semibold mb-4">Overall Progress</h2>

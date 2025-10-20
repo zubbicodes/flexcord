@@ -10,6 +10,8 @@ import { useNavigate } from "react-router-dom";
 
 const WorkerEntry = () => {
   const navigate = useNavigate();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<string>("");
   const [sizes, setSizes] = useState<any[]>([]);
   const [processes, setProcesses] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -21,16 +23,32 @@ const WorkerEntry = () => {
   });
 
   useEffect(() => {
-    loadData();
+    loadInitialData();
   }, []);
 
-  const loadData = async () => {
-    const [sizesRes, processesRes] = await Promise.all([
-      supabase.from("product_sizes").select("*").order("sr_number"),
+  useEffect(() => {
+    if (selectedOrder) loadSizes();
+  }, [selectedOrder]);
+
+  const loadInitialData = async () => {
+    const [ordersRes, processesRes] = await Promise.all([
+      supabase.from("sale_orders").select("*"),
       supabase.from("processes").select("*").order("order_number"),
     ]);
-    if (sizesRes.data) setSizes(sizesRes.data);
+    if (ordersRes.data) {
+      setOrders(ordersRes.data);
+      if (ordersRes.data.length > 0) setSelectedOrder(ordersRes.data[0].id);
+    }
     if (processesRes.data) setProcesses(processesRes.data);
+  };
+
+  const loadSizes = async () => {
+    const { data } = await supabase
+      .from("product_sizes")
+      .select("*")
+      .eq("sale_order_id", selectedOrder)
+      .order("sr_number");
+    if (data) setSizes(data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,6 +81,22 @@ const WorkerEntry = () => {
           <h1 className="text-3xl font-bold mb-6">Add Progress Entry</h1>
           
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label>Sale Order</Label>
+              <Select value={selectedOrder} onValueChange={setSelectedOrder}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select order" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orders.map((order) => (
+                    <SelectItem key={order.id} value={order.id}>
+                      {order.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label>Size</Label>
               <Select value={formData.productSizeId} onValueChange={(v) => setFormData({ ...formData, productSizeId: v })}>

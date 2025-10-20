@@ -47,6 +47,7 @@ export type Database = {
           id: string
           item: string
           quantity: number
+          sale_order_id: string
           sr_number: number
           tipping_cord_size: number
         }
@@ -61,6 +62,7 @@ export type Database = {
           id?: string
           item?: string
           quantity: number
+          sale_order_id: string
           sr_number: number
           tipping_cord_size: number
         }
@@ -75,10 +77,19 @@ export type Database = {
           id?: string
           item?: string
           quantity?: number
+          sale_order_id?: string
           sr_number?: number
           tipping_cord_size?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "product_sizes_sale_order_id_fkey"
+            columns: ["sale_order_id"]
+            isOneToOne: false
+            referencedRelation: "sale_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       progress_entries: {
         Row: {
@@ -127,6 +138,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sale_orders: {
+        Row: {
+          color: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          color: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
       }
     }
     Views: {
