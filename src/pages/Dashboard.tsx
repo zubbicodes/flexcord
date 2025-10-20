@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { LayoutGrid, Table as TableIcon } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProductSize {
   id: string;
@@ -30,6 +32,7 @@ const Dashboard = () => {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [progressData, setProgressData] = useState<ProgressData>({});
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
   useEffect(() => {
     loadData();
@@ -83,7 +86,23 @@ const Dashboard = () => {
             <h1 className="text-4xl font-bold text-foreground">Production Dashboard</h1>
             <p className="text-muted-foreground">Flexible Drawcord - Navy</p>
           </div>
-          <Button onClick={() => navigate("/entry")}>Add Progress</Button>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setViewMode("table")}
+            >
+              <TableIcon className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => navigate("/entry")}>Add Progress</Button>
+          </div>
         </div>
 
         <Card className="p-6">
@@ -97,40 +116,102 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        <div className="grid gap-4">
-          {processes.map((process) => {
-            const processTotal = sizes.reduce((sum, size) => {
-              const { completed } = getProgress(size.id, process.id, size.quantity);
-              return sum + completed;
-            }, 0);
-            const processRequired = sizes.reduce((sum, size) => sum + size.quantity, 0);
-            const processPercentage = (processTotal / processRequired) * 100;
+        {viewMode === "grid" ? (
+          <div className="grid gap-4">
+            {processes.map((process) => {
+              const processTotal = sizes.reduce((sum, size) => {
+                const { completed } = getProgress(size.id, process.id, size.quantity);
+                return sum + completed;
+              }, 0);
+              const processRequired = sizes.reduce((sum, size) => sum + size.quantity, 0);
+              const processPercentage = (processTotal / processRequired) * 100;
 
-            return (
-              <Card key={process.id} className="p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-lg font-semibold">{process.name}</h3>
-                  <span className="text-sm font-medium">{processPercentage.toFixed(1)}%</span>
-                </div>
-                <Progress value={processPercentage} className="mb-3" />
-                <div className="grid grid-cols-7 gap-2 text-xs">
-                  {sizes.map((size) => {
-                    const { completed, percentage } = getProgress(size.id, process.id, size.quantity);
-                    return (
-                      <div key={size.id} className="bg-muted p-2 rounded">
-                        <div className="font-medium">Size {size.sr_number}</div>
-                        <div className="text-muted-foreground">
-                          {completed}/{size.quantity}
+              return (
+                <Card key={process.id} className="p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold">{process.name}</h3>
+                    <span className="text-sm font-medium">{processPercentage.toFixed(1)}%</span>
+                  </div>
+                  <Progress value={processPercentage} className="mb-3" />
+                  <div className="grid grid-cols-7 gap-2 text-xs">
+                    {sizes.map((size) => {
+                      const { completed, percentage } = getProgress(size.id, process.id, size.quantity);
+                      return (
+                        <div key={size.id} className="bg-muted p-2 rounded">
+                          <div className="font-medium">Size {size.sr_number}</div>
+                          <div className="text-muted-foreground">
+                            {completed}/{size.quantity}
+                          </div>
+                          <div className="font-semibold text-primary">{percentage.toFixed(0)}%</div>
                         </div>
-                        <div className="font-semibold text-primary">{percentage.toFixed(0)}%</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card className="overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-semibold">Size</TableHead>
+                  <TableHead className="font-semibold">Qty</TableHead>
+                  {processes.map((process) => (
+                    <TableHead key={process.id} className="text-center font-semibold">
+                      {process.name}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-center font-semibold">Overall</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sizes.map((size) => {
+                  const sizeTotal = processes.reduce((sum, process) => {
+                    const { completed } = getProgress(size.id, process.id, size.quantity);
+                    return sum + completed;
+                  }, 0);
+                  const sizeRequired = size.quantity * processes.length;
+                  const sizePercentage = (sizeTotal / sizeRequired) * 100;
+
+                  return (
+                    <TableRow key={size.id}>
+                      <TableCell className="font-medium">
+                        Size {size.sr_number}
+                        <div className="text-xs text-muted-foreground">{size.finished_size_inch}"</div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{size.quantity}</TableCell>
+                      {processes.map((process) => {
+                        const { completed, percentage } = getProgress(size.id, process.id, size.quantity);
+                        return (
+                          <TableCell key={process.id} className="text-center">
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium">
+                                {completed}/{size.quantity}
+                              </div>
+                              <Progress value={percentage} className="h-2" />
+                              <div className="text-xs text-primary font-semibold">{percentage.toFixed(0)}%</div>
+                            </div>
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">
+                            {sizeTotal}/{sizeRequired}
+                          </div>
+                          <Progress value={sizePercentage} className="h-2" />
+                          <div className="text-xs font-semibold text-primary">{sizePercentage.toFixed(1)}%</div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
       </div>
     </div>
   );
