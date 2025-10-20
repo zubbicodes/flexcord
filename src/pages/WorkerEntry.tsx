@@ -22,6 +22,12 @@ const WorkerEntry = () => {
     notes: "",
   });
 
+  const [remainingInfo, setRemainingInfo] = useState<{ completed: number; remaining: number; required: number }>({
+    completed: 0,
+    remaining: 0,
+    required: 0,
+  });
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -29,6 +35,31 @@ const WorkerEntry = () => {
   useEffect(() => {
     if (selectedOrder) loadSizes();
   }, [selectedOrder]);
+
+  // Recalculate remaining whenever size or process changes
+  useEffect(() => {
+    const calcRemaining = async () => {
+      if (!formData.productSizeId || !formData.processId) {
+        setRemainingInfo({ completed: 0, remaining: 0, required: 0 });
+        return;
+      }
+
+      const size = sizes.find((s) => s.id === formData.productSizeId);
+      const required = size?.quantity ?? 0;
+
+      const { data } = await supabase
+        .from("progress_entries")
+        .select("quantity_completed")
+        .eq("product_size_id", formData.productSizeId)
+        .eq("process_id", formData.processId);
+
+      const completed = (data || []).reduce((sum: number, row: any) => sum + (row.quantity_completed || 0), 0);
+      const remaining = Math.max(0, required - completed);
+      setRemainingInfo({ completed, remaining, required });
+    };
+
+    calcRemaining();
+  }, [formData.productSizeId, formData.processId, sizes]);
 
   const loadInitialData = async () => {
     const [ordersRes, processesRes] = await Promise.all([
@@ -54,20 +85,64 @@ const WorkerEntry = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = await supabase.from("progress_entries").insert({
-      product_size_id: formData.productSizeId,
-      process_id: formData.processId,
-      quantity_completed: parseInt(formData.quantityCompleted),
-      worker_name: formData.workerName,
-      notes: formData.notes || null,
-    });
-
-    if (error) {
-      toast.error("Failed to save progress");
-    } else {
-      toast.success("Progress saved successfully!");
-      setFormData({ productSizeId: "", processId: "", quantityCompleted: "", workerName: "", notes: "" });
+    // Prevent overshoot entries
+    const qty = parseInt(formData.quantityCompleted);
+    if (Number.isNaN(qty) || qty <= 0) {
+      toast.error("Enter a valid quantity");
+      return;
     }
+    if (qty > remainingInfo.remaining) {
+      toast.error(`Cannot exceed remaining (${remainingInfo.remaining})`);
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // Check if an entry for today already exists (unique constraint on product_size_id, process_id, entry_date)
+    const { data: existing, error: selectErr } = await supabase
+      .from("progress_entries")
+      .select("id, quantity_completed")
+      .eq("product_size_id", formData.productSizeId)
+      .eq("process_id", formData.processId)
+      .eq("entry_date", today)
+      .maybeSingle();
+
+    if (selectErr) {
+      toast.error("Failed to check existing progress");
+      return;
+    }
+
+    if (existing) {
+      // Update by incrementing existing quantity
+      const { error: updateErr } = await supabase
+        .from("progress_entries")
+        .update({ quantity_completed: existing.quantity_completed + qty })
+        .eq("id", existing.id);
+
+      if (updateErr) {
+        toast.error("Failed to update progress");
+        return;
+      }
+    } else {
+      // Insert new row for today
+      const { error: insertErr } = await supabase.from("progress_entries").insert({
+        product_size_id: formData.productSizeId,
+        process_id: formData.processId,
+        quantity_completed: qty,
+        worker_name: formData.workerName,
+        notes: formData.notes || null,
+        entry_date: today,
+      });
+
+      if (insertErr) {
+        toast.error("Failed to save progress");
+        return;
+      }
+    }
+
+    toast.success("Progress saved successfully!");
+    // Refresh remaining info by triggering effects
+    setFormData({ productSizeId: formData.productSizeId, processId: formData.processId, quantityCompleted: "", workerName: "", notes: "" });
   };
 
   return (
@@ -127,6 +202,21 @@ const WorkerEntry = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {formData.productSizeId && formData.processId && (
+                <div className="mt-2 text-sm">
+                  <span className="text-muted-foreground">
+                    Remaining: 
+                  </span>{" "}
+                  <span className="font-medium">
+                    {remainingInfo.remaining}
+                  </span>{" "}
+                  <span className="text-muted-foreground">out of</span>{" "}
+                  <span className="font-medium">{remainingInfo.required}</span>
+                  {remainingInfo.completed > 0 && (
+                    <span className="text-muted-foreground"> (completed {remainingInfo.completed})</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -134,9 +224,25 @@ const WorkerEntry = () => {
               <Input
                 type="number"
                 value={formData.quantityCompleted}
-                onChange={(e) => setFormData({ ...formData, quantityCompleted: e.target.value })}
+                min={0}
+                max={Math.max(0, remainingInfo.remaining) || undefined}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  // Enforce max in UI
+                  const n = parseInt(v);
+                  if (!Number.isNaN(n) && remainingInfo.remaining > 0 && n > remainingInfo.remaining) {
+                    setFormData({ ...formData, quantityCompleted: String(remainingInfo.remaining) });
+                  } else {
+                    setFormData({ ...formData, quantityCompleted: v });
+                  }
+                }}
                 required
               />
+              {formData.productSizeId && formData.processId && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Max allowed: {remainingInfo.remaining}
+                </div>
+              )}
             </div>
 
             <div>

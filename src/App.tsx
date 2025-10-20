@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import WorkerEntry from "./pages/WorkerEntry";
 import SaleOrderManagement from "./pages/SaleOrderManagement";
 import WorkerProgress from "./pages/WorkerProgress";
+import ProcessDetails from "./pages/ProcessDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/process/:processId/:orderId" element={<ProcessDetails />} />
           <Route path="/entry" element={<WorkerEntry />} />
           <Route path="/sale-orders" element={<SaleOrderManagement />} />
           <Route path="/worker-progress" element={<WorkerProgress />} />
