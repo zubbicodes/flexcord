@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 import { LayoutGrid, Table as TableIcon, Settings, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { exportToXLSX, exportTableToPDF } from "@/lib/export";
 
 interface ProductSize {
   id: string;
@@ -211,99 +210,6 @@ const Dashboard = () => {
               <Users className="h-4 w-4 mr-2" />
               Worker Progress
             </Button>
-            <Button variant="outline" onClick={async () => {
-              if (!selectedOrderData) return;
-              const totalRequired = sizes.reduce((sum, s) => sum + s.quantity, 0);
-              const totalOverallCompleted = sizes.reduce((sum, s) => sum + getOverallCompletedForSize(s.id), 0);
-              const totalOverallPct = totalRequired > 0 ? (totalOverallCompleted / totalRequired) * 100 : 0;
-              const avgCompletion = getAverageCompletionOverall();
-
-              // Per-process totals
-              const perProcessTotals = processes.map((p) => {
-                const completed = sizes.reduce((sum, s) => sum + (progressData[s.id]?.[p.id] || 0), 0);
-                const pct = totalRequired > 0 ? (completed / totalRequired) * 100 : 0;
-                return { name: p.name, completed, pct };
-              });
-
-              // Summary sheet
-              const summaryRows = [
-                { Metric: "Order", Value: selectedOrderData.name },
-                { Metric: "Color", Value: selectedOrderData.color },
-                { Metric: "Total Required", Value: totalRequired },
-                { Metric: "Overall Completed", Value: totalOverallCompleted },
-                { Metric: "Overall %", Value: Number(totalOverallPct.toFixed(1)) },
-                { Metric: "Average Completion %", Value: Number(avgCompletion.toFixed(1)) },
-              ];
-              perProcessTotals.forEach((pp) => {
-                summaryRows.push({ Metric: `${pp.name} Completed`, Value: pp.completed });
-                summaryRows.push({ Metric: `${pp.name} %`, Value: Number(pp.pct.toFixed(1)) });
-              });
-
-              // Size-wise sheet (with overall columns)
-              const sizeRows = sizes.map((s) => {
-                const overallCompleted = getOverallCompletedForSize(s.id);
-                return {
-                  Size: `Size ${s.sr_number}`,
-                  "Finished (inch)": s.finished_size_inch,
-                  Quantity: s.quantity,
-                  "Overall Completed": overallCompleted,
-                  "Overall %": Number(((overallCompleted / s.quantity) * 100 || 0).toFixed(1)),
-                };
-              });
-
-              // Process-wise sheet (totals)
-              const processRows = perProcessTotals.map((pp) => ({
-                Process: pp.name,
-                Completed: pp.completed,
-                Required: totalRequired,
-                "%": Number(pp.pct.toFixed(1)),
-              }));
-
-              // Complete progress entries matrix (size x process) including overall columns
-              const matrixRows = sizes.map((s) => {
-                const row: any = { Size: `Size ${s.sr_number}`, Qty: s.quantity };
-                processes.forEach((p) => {
-                  row[p.name] = progressData[s.id]?.[p.id] || 0;
-                });
-                const oc = getOverallCompletedForSize(s.id);
-                row["Overall Completed"] = oc;
-                row["Overall %"] = Number(((oc / s.quantity) * 100 || 0).toFixed(1));
-                return row;
-              });
-
-              await exportToXLSX(`${selectedOrderData.name}-progress`, [
-                { name: "Summary", rows: summaryRows },
-                { name: "Size Wise", rows: sizeRows },
-                { name: "Process Wise", rows: processRows },
-                { name: "Complete", rows: matrixRows },
-              ]);
-            }}>Export Excel</Button>
-            <Button variant="outline" onClick={async () => {
-              if (!selectedOrderData) return;
-              const totalRequired = sizes.reduce((sum, s) => sum + s.quantity, 0);
-              const totalOverallCompleted = sizes.reduce((sum, s) => sum + getOverallCompletedForSize(s.id), 0);
-              const totalOverallPct = totalRequired > 0 ? (totalOverallCompleted / totalRequired) * 100 : 0;
-              const avgCompletion = getAverageCompletionOverall();
-
-              const columns = ["Size", "Qty", ...processes.map((p) => p.name), "Overall Completed", "Overall %"];
-              const rows = sizes.map((s) => {
-                const r: (string | number)[] = [`Size ${s.sr_number}`, s.quantity];
-                processes.forEach((p) => r.push(progressData[s.id]?.[p.id] || 0));
-                const oc = getOverallCompletedForSize(s.id);
-                r.push(oc, Number(((oc / s.quantity) * 100 || 0).toFixed(1)));
-                return r;
-              });
-
-              // Add a summary row at the end
-              rows.push(["TOTAL", totalRequired, ...processes.map((p) => sizes.reduce((sum, s) => sum + (progressData[s.id]?.[p.id] || 0), 0)), totalOverallCompleted, Number(totalOverallPct.toFixed(1))]);
-
-              await exportTableToPDF(
-                `${selectedOrderData.name}-progress`,
-                `${selectedOrderData.name} Progress (Overall ${totalOverallPct.toFixed(1)}% | Avg ${avgCompletion.toFixed(1)}%)`,
-                columns,
-                rows,
-              );
-            }}>Export PDF</Button>
             <Button
               variant={viewMode === "grid" ? "default" : "outline"}
               size="icon"

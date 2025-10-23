@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Save, Edit2, X } from "lucide-react";
+import { Save, Edit2, X, Plus } from "lucide-react";
 
 interface SaleOrder {
   id: string;
@@ -34,6 +35,10 @@ const SaleOrderManagement = () => {
   const [sizes, setSizes] = useState<ProductSize[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<ProductSize>>({});
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newOrderName, setNewOrderName] = useState("");
+  const [newOrderColor, setNewOrderColor] = useState("");
+  const [templateOrderId, setTemplateOrderId] = useState("");
 
   useEffect(() => {
     loadOrders();
@@ -88,6 +93,59 @@ const SaleOrderManagement = () => {
     }
   };
 
+  const addNewOrder = async () => {
+    if (!newOrderName.trim() || !newOrderColor.trim()) {
+      toast.error("Please enter order name and color");
+      return;
+    }
+
+    const { data: newOrder, error: orderError } = await supabase
+      .from("sale_orders")
+      .insert({ name: newOrderName, color: newOrderColor })
+      .select()
+      .single();
+
+    if (orderError || !newOrder) {
+      toast.error("Failed to create order");
+      return;
+    }
+
+    if (templateOrderId) {
+      const { data: templateSizes } = await supabase
+        .from("product_sizes")
+        .select("*")
+        .eq("sale_order_id", templateOrderId);
+
+      if (templateSizes && templateSizes.length > 0) {
+        const newSizes = templateSizes.map((size) => ({
+          sale_order_id: newOrder.id,
+          sr_number: size.sr_number,
+          finished_size_inch: size.finished_size_inch,
+          finished_size_cm: size.finished_size_cm,
+          elastic_inch: size.elastic_inch,
+          elastic_inch_value: size.elastic_inch_value,
+          elastic_cm: size.elastic_cm,
+          tipping_cord_size: size.tipping_cord_size,
+          quantity: size.quantity,
+        }));
+
+        const { error: sizesError } = await supabase.from("product_sizes").insert(newSizes);
+
+        if (sizesError) {
+          toast.error("Order created but failed to copy sizes");
+        }
+      }
+    }
+
+    toast.success("Order created successfully");
+    setIsAddDialogOpen(false);
+    setNewOrderName("");
+    setNewOrderColor("");
+    setTemplateOrderId("");
+    loadOrders();
+    setSelectedOrder(newOrder.id);
+  };
+
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 
   return (
@@ -104,18 +162,70 @@ const SaleOrderManagement = () => {
         </div>
 
         <Card className="p-4">
-          <Select value={selectedOrder} onValueChange={setSelectedOrder}>
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="Select order" />
-            </SelectTrigger>
-            <SelectContent>
-              {orders.map((order) => (
-                <SelectItem key={order.id} value={order.id}>
-                  {order.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-4 items-center">
+            <Select value={selectedOrder} onValueChange={setSelectedOrder}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Select order" />
+              </SelectTrigger>
+              <SelectContent>
+                {orders.map((order) => (
+                  <SelectItem key={order.id} value={order.id}>
+                    {order.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Order
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Sale Order</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <label className="text-sm font-medium">Order Name</label>
+                    <Input
+                      placeholder="e.g., Navy Order"
+                      value={newOrderName}
+                      onChange={(e) => setNewOrderName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Color</label>
+                    <Input
+                      placeholder="e.g., Navy"
+                      value={newOrderColor}
+                      onChange={(e) => setNewOrderColor(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Copy Sizes From (Optional)</label>
+                    <Select value={templateOrderId} onValueChange={setTemplateOrderId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select template order" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orders.map((order) => (
+                          <SelectItem key={order.id} value={order.id}>
+                            {order.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={addNewOrder} className="w-full">
+                    Create Order
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </Card>
 
         {selectedOrderData && (

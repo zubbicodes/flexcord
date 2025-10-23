@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { exportToXLSX, exportTableToPDF } from "@/lib/export";
 
 interface ProgressEntry {
   id: string;
@@ -83,23 +82,6 @@ const WorkerProgress = () => {
             <p className="text-muted-foreground">View all progress entries by worker</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={async () => {
-              const rows = Object.entries(groupedByWorker).map(([worker, list]) => ({
-                Worker: worker,
-                Entries: list.length,
-                Quantity: list.reduce((s, e) => s + e.quantity_completed, 0),
-              }));
-              await exportToXLSX("worker-progress", [{ name: "Worker Wise", rows }]);
-            }}>Export Excel</Button>
-            <Button variant="outline" onClick={async () => {
-              const columns = ["Worker", "Entries", "Quantity"];
-              const rows = Object.entries(groupedByWorker).map(([worker, list]) => [
-                worker,
-                list.length,
-                list.reduce((s, e) => s + e.quantity_completed, 0),
-              ]);
-              await exportTableToPDF("worker-progress", "Worker Progress", columns, rows);
-            }}>Export PDF</Button>
             <Button variant="outline" onClick={() => navigate("/")}>
               ← Back to Dashboard
             </Button>
