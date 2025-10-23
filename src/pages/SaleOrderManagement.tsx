@@ -202,22 +202,22 @@ const SaleOrderManagement = () => {
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
-            <h1 className="text-4xl font-bold">Sale Order Management</h1>
-            <p className="text-muted-foreground">View and edit product specifications</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Sale Order Management</h1>
+            <p className="text-sm md:text-base text-muted-foreground">View and edit product specifications</p>
           </div>
-          <Button variant="outline" onClick={() => navigate("/")}>
-            ← Back to Dashboard
+          <Button variant="outline" onClick={() => navigate("/")} size="sm" className="text-xs md:text-sm">
+            ← Back
           </Button>
         </div>
 
-        <Card className="p-4">
-          <div className="flex gap-4 items-center">
+        <Card className="p-3 md:p-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center">
             <Select value={selectedOrder} onValueChange={setSelectedOrder}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger className="w-full sm:w-64">
                 <SelectValue placeholder="Select order" />
               </SelectTrigger>
               <SelectContent>
@@ -234,17 +234,20 @@ const SaleOrderManagement = () => {
                 variant="destructive"
                 size="sm"
                 onClick={() => setDeleteOrderDialogOpen(true)}
+                className="text-xs md:text-sm"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Order
+                <Trash2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Delete Order</span>
+                <span className="sm:hidden">Delete</span>
               </Button>
             )}
             
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add New Order
+                <Button size="sm" className="text-xs md:text-sm">
+                  <Plus className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Add New Order</span>
+                  <span className="sm:hidden">Add</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -293,12 +296,12 @@ const SaleOrderManagement = () => {
         </Card>
 
         {selectedOrderData && (
-          <Card className="overflow-auto">
-            <div className="p-4 border-b">
-              <h2 className="text-2xl font-semibold">{selectedOrderData.name}</h2>
-              <p className="text-muted-foreground">Color: {selectedOrderData.color}</p>
+          <Card className="overflow-x-auto">
+            <div className="p-3 md:p-4 border-b">
+              <h2 className="text-lg md:text-2xl font-semibold">{selectedOrderData.name}</h2>
+              <p className="text-sm md:text-base text-muted-foreground">Color: {selectedOrderData.color}</p>
             </div>
-            <Table>
+            <Table className="text-xs md:text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead>Sr#</TableHead>

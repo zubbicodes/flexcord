@@ -146,14 +146,14 @@ const WorkerEntry = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6">
       <div className="max-w-2xl mx-auto">
-        <Button variant="outline" onClick={() => navigate("/")} className="mb-6">
-          ← Back to Dashboard
+        <Button variant="outline" onClick={() => navigate("/")} className="mb-4 md:mb-6" size="sm">
+          <span className="text-xs md:text-sm">← Back</span>
         </Button>
         
-        <Card className="p-6">
-          <h1 className="text-3xl font-bold mb-6">Add Progress Entry</h1>
+        <Card className="p-3 sm:p-4 md:p-6">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 md:mb-6">Add Progress Entry</h1>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

@@ -74,30 +74,30 @@ const WorkerProgress = () => {
   }, {} as Record<string, ProgressEntry[]>);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
-            <h1 className="text-4xl font-bold">Worker Progress</h1>
-            <p className="text-muted-foreground">View all progress entries by worker</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Worker Progress</h1>
+            <p className="text-sm md:text-base text-muted-foreground">View all progress entries by worker</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/")}>
-              ← Back to Dashboard
+            <Button variant="outline" onClick={() => navigate("/")} size="sm" className="text-xs md:text-sm">
+              ← Back
             </Button>
           </div>
         </div>
 
         {Object.entries(groupedByWorker).map(([workerName, workerEntries]) => (
-          <Card key={workerName} className="overflow-auto">
-            <div className="p-4 border-b bg-muted">
-              <h2 className="text-xl font-semibold">{workerName}</h2>
-              <p className="text-sm text-muted-foreground">
-                Total Entries: {workerEntries.length} | Total Quantity:{" "}
+          <Card key={workerName} className="overflow-x-auto">
+            <div className="p-3 md:p-4 border-b bg-muted">
+              <h2 className="text-lg md:text-xl font-semibold">{workerName}</h2>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Entries: {workerEntries.length} | Qty:{" "}
                 {workerEntries.reduce((sum, e) => sum + e.quantity_completed, 0)}
               </p>
             </div>
-            <Table>
+            <Table className="text-xs md:text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>

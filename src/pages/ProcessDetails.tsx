@@ -84,21 +84,21 @@ const ProcessDetails = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
           <div>
-            <h1 className="text-3xl font-bold">{process.name} Details</h1>
-            <p className="text-muted-foreground">Order: {order.name} - {order.color}</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">{process.name} Details</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Order: {order.name} - {order.color}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/">← Back to Dashboard</Link>
+            <Button variant="outline" asChild size="sm">
+              <Link to="/" className="text-xs md:text-sm">← Back</Link>
             </Button>
           </div>
         </div>
 
-        <Card className="p-6">
+        <Card className="p-3 md:p-6">
           <div className="flex justify-between text-sm mb-2">
             <span className="font-medium">Overall Completion</span>
             <span className="font-semibold">{totals.percentage.toFixed(1)}%</span>
@@ -109,8 +109,8 @@ const ProcessDetails = () => {
           </div>
         </Card>
 
-        <Card className="overflow-auto">
-          <Table>
+        <Card className="overflow-x-auto">
+          <Table className="text-xs md:text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead>Size</TableHead>
