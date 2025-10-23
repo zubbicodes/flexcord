@@ -263,7 +263,21 @@ const Dashboard = () => {
             <div className={`w-4 h-4 rounded-full ${selectedOrderData ? getOrderColor(selectedOrderData.color) : 'bg-gray-500'} border-2 ${selectedOrderData ? getOrderBorderColor(selectedOrderData.color) : 'border-gray-500'}`}></div>
             <h2 className="text-2xl font-semibold">Overall Progress</h2>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Total QTY</span>
+                <span className="font-semibold">{sizes.reduce((sum, size) => sum + size.quantity, 0)}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">Sum of all sizes</div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Fully Completed</span>
+                <span className="font-semibold">{total.completed} / {sizes.reduce((sum, size) => sum + size.quantity, 0)}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">Items finished all processes</div>
+            </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Total Completion</span>
