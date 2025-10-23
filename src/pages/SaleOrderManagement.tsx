@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Save, Edit2, X, Plus } from "lucide-react";
+import { Save, Edit2, X, Plus, Trash2 } from "lucide-react";
 
 interface SaleOrder {
   id: string;
@@ -39,6 +40,9 @@ const SaleOrderManagement = () => {
   const [newOrderName, setNewOrderName] = useState("");
   const [newOrderColor, setNewOrderColor] = useState("");
   const [templateOrderId, setTemplateOrderId] = useState("");
+  const [deleteOrderDialogOpen, setDeleteOrderDialogOpen] = useState(false);
+  const [deleteRowDialogOpen, setDeleteRowDialogOpen] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -146,6 +150,55 @@ const SaleOrderManagement = () => {
     setSelectedOrder(newOrder.id);
   };
 
+  const deleteOrder = async () => {
+    if (!selectedOrder) return;
+
+    // Delete all product sizes first
+    const { error: sizesError } = await supabase
+      .from("product_sizes")
+      .delete()
+      .eq("sale_order_id", selectedOrder);
+
+    if (sizesError) {
+      toast.error("Failed to delete order sizes");
+      return;
+    }
+
+    // Delete the order
+    const { error: orderError } = await supabase
+      .from("sale_orders")
+      .delete()
+      .eq("id", selectedOrder);
+
+    if (orderError) {
+      toast.error("Failed to delete order");
+      return;
+    }
+
+    toast.success("Order deleted successfully");
+    setDeleteOrderDialogOpen(false);
+    loadOrders();
+  };
+
+  const deleteRow = async () => {
+    if (!rowToDelete) return;
+
+    const { error } = await supabase
+      .from("product_sizes")
+      .delete()
+      .eq("id", rowToDelete);
+
+    if (error) {
+      toast.error("Failed to delete row");
+    } else {
+      toast.success("Row deleted successfully");
+      loadSizes();
+    }
+
+    setDeleteRowDialogOpen(false);
+    setRowToDelete(null);
+  };
+
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 
   return (
@@ -175,6 +228,17 @@ const SaleOrderManagement = () => {
                 ))}
               </SelectContent>
             </Select>
+
+            {selectedOrder && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOrderDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Order
+              </Button>
+            )}
             
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
@@ -329,9 +393,21 @@ const SaleOrderManagement = () => {
                         <TableCell>{size.tipping_cord_size}</TableCell>
                         <TableCell className="font-semibold">{size.quantity}</TableCell>
                         <TableCell>
-                          <Button size="sm" variant="outline" onClick={() => startEdit(size)}>
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => startEdit(size)}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setRowToDelete(size.id);
+                                setDeleteRowDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </>
                     )}
@@ -341,6 +417,40 @@ const SaleOrderManagement = () => {
             </Table>
           </Card>
         )}
+
+        <AlertDialog open={deleteOrderDialogOpen} onOpenChange={setDeleteOrderDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Order</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this order? This will also delete all associated product sizes. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={deleteOrder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={deleteRowDialogOpen} onOpenChange={setDeleteRowDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Row</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this product size? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={deleteRow} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
