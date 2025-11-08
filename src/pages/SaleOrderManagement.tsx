@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Save, Edit2, X, Plus, Trash2 } from "lucide-react";
@@ -43,9 +44,13 @@ const SaleOrderManagement = () => {
   const [deleteOrderDialogOpen, setDeleteOrderDialogOpen] = useState(false);
   const [deleteRowDialogOpen, setDeleteRowDialogOpen] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<string | null>(null);
+  const [processes, setProcesses] = useState<{ id: string; name: string; order_number?: number }[]>([]);
+  const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
+  const [newProcessName, setNewProcessName] = useState("");
 
   useEffect(() => {
     loadOrders();
+    loadProcesses();
   }, []);
 
   useEffect(() => {
@@ -58,6 +63,11 @@ const SaleOrderManagement = () => {
       setOrders(data);
       if (data.length > 0) setSelectedOrder(data[0].id);
     }
+  };
+
+  const loadProcesses = async () => {
+    const { data } = await supabase.from("processes").select("*").order("order_number");
+    if (data) setProcesses(data);
   };
 
   const loadSizes = async () => {
@@ -103,6 +113,11 @@ const SaleOrderManagement = () => {
       return;
     }
 
+    if (selectedProcesses.length === 0) {
+      toast.error("Please select at least one process");
+      return;
+    }
+
     const { data: newOrder, error: orderError } = await supabase
       .from("sale_orders")
       .insert({ name: newOrderName, color: newOrderColor })
@@ -111,6 +126,21 @@ const SaleOrderManagement = () => {
 
     if (orderError || !newOrder) {
       toast.error("Failed to create order");
+      return;
+    }
+
+    // Insert selected processes for this order
+    const processLinks = selectedProcesses.map(processId => ({
+      sale_order_id: newOrder.id,
+      process_id: processId
+    }));
+
+    const { error: processError } = await supabase
+      .from("sale_order_processes")
+      .insert(processLinks);
+
+    if (processError) {
+      toast.error("Order created but failed to link processes");
       return;
     }
 
@@ -146,8 +176,43 @@ const SaleOrderManagement = () => {
     setNewOrderName("");
     setNewOrderColor("");
     setTemplateOrderId("");
+    setSelectedProcesses([]);
+    setNewProcessName("");
     loadOrders();
     setSelectedOrder(newOrder.id);
+  };
+
+  const addNewProcess = async () => {
+    if (!newProcessName.trim()) {
+      toast.error("Please enter process name");
+      return;
+    }
+
+    const maxOrder = processes.length > 0 ? Math.max(...processes.map(p => p.order_number || 0)) : 0;
+
+    const { data, error } = await supabase
+      .from("processes")
+      .insert({ name: newProcessName, order_number: maxOrder + 1 })
+      .select()
+      .single();
+
+    if (error || !data) {
+      toast.error("Failed to create process");
+      return;
+    }
+
+    toast.success("Process created successfully");
+    setNewProcessName("");
+    loadProcesses();
+    setSelectedProcesses([...selectedProcesses, data.id]);
+  };
+
+  const toggleProcessSelection = (processId: string) => {
+    setSelectedProcesses(prev =>
+      prev.includes(processId)
+        ? prev.filter(id => id !== processId)
+        : [...prev, processId]
+    );
   };
 
   const deleteOrder = async () => {
@@ -270,6 +335,36 @@ const SaleOrderManagement = () => {
                       value={newOrderColor}
                       onChange={(e) => setNewOrderColor(e.target.value)}
                     />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Select Processes</label>
+                    <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                      {processes.map((process) => (
+                        <div key={process.id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={process.id}
+                            checked={selectedProcesses.includes(process.id)}
+                            onCheckedChange={() => toggleProcessSelection(process.id)}
+                          />
+                          <label htmlFor={process.id} className="text-sm cursor-pointer">
+                            {process.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Add New Process (Optional)</label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="e.g., Knitting"
+                        value={newProcessName}
+                        onChange={(e) => setNewProcessName(e.target.value)}
+                      />
+                      <Button onClick={addNewProcess} variant="outline" size="sm">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div>
                     <label className="text-sm font-medium">Copy Sizes From (Optional)</label>

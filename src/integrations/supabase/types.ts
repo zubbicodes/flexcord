@@ -139,6 +139,42 @@ export type Database = {
           },
         ]
       }
+      sale_order_processes: {
+        Row: {
+          created_at: string | null
+          id: string
+          process_id: string
+          sale_order_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          process_id: string
+          sale_order_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          process_id?: string
+          sale_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_order_processes_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_order_processes_sale_order_id_fkey"
+            columns: ["sale_order_id"]
+            isOneToOne: false
+            referencedRelation: "sale_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_orders: {
         Row: {
           color: string

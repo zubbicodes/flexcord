@@ -121,14 +121,25 @@ const Dashboard = () => {
   };
 
   const loadData = async () => {
-    const [sizesRes, processesRes, progressRes] = await Promise.all([
+    const [sizesRes, orderProcessesRes, progressRes] = await Promise.all([
       supabase.from("product_sizes").select("*").eq("sale_order_id", selectedOrder).order("sr_number"),
-      supabase.from("processes").select("*").order("order_number"),
+      supabase
+        .from("sale_order_processes")
+        .select("process_id, processes(id, name, order_number)")
+        .eq("sale_order_id", selectedOrder),
       supabase.from("progress_entries").select("*"),
     ]);
 
     if (sizesRes.data) setSizes(sizesRes.data);
-    if (processesRes.data) setProcesses(processesRes.data);
+    
+    // Filter processes to only those linked to this order
+    if (orderProcessesRes.data) {
+      const linkedProcesses = orderProcessesRes.data
+        .map(link => link.processes)
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.order_number - b.order_number);
+      setProcesses(linkedProcesses as Process[]);
+    }
 
     if (progressRes.data) {
       const grouped: ProgressData = {};

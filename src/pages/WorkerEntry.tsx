@@ -33,8 +33,27 @@ const WorkerEntry = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedOrder) loadSizes();
+    if (selectedOrder) {
+      loadSizes();
+      loadProcesses();
+    }
   }, [selectedOrder]);
+
+  const loadProcesses = async () => {
+    if (!selectedOrder) return;
+    const { data } = await supabase
+      .from("sale_order_processes")
+      .select("process_id, processes(id, name, order_number)")
+      .eq("sale_order_id", selectedOrder);
+    
+    if (data) {
+      const linkedProcesses = data
+        .map(link => link.processes)
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.order_number - b.order_number);
+      setProcesses(linkedProcesses);
+    }
+  };
 
   // Recalculate remaining whenever size or process changes
   useEffect(() => {
@@ -62,15 +81,11 @@ const WorkerEntry = () => {
   }, [formData.productSizeId, formData.processId, sizes]);
 
   const loadInitialData = async () => {
-    const [ordersRes, processesRes] = await Promise.all([
-      supabase.from("sale_orders").select("*"),
-      supabase.from("processes").select("*").order("order_number"),
-    ]);
-    if (ordersRes.data) {
-      setOrders(ordersRes.data);
-      if (ordersRes.data.length > 0) setSelectedOrder(ordersRes.data[0].id);
+    const { data: ordersRes } = await supabase.from("sale_orders").select("*");
+    if (ordersRes) {
+      setOrders(ordersRes);
+      if (ordersRes.length > 0) setSelectedOrder(ordersRes[0].id);
     }
-    if (processesRes.data) setProcesses(processesRes.data);
   };
 
   const loadSizes = async () => {
