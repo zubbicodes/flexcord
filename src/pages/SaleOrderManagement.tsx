@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Save, Edit2, X, Plus, Trash2 } from "lucide-react";
+import { Save, Edit2, X, Plus, Trash2, ChevronUp, ChevronDown, Settings } from "lucide-react";
 
 interface SaleOrder {
   id: string;
@@ -47,6 +47,8 @@ const SaleOrderManagement = () => {
   const [processes, setProcesses] = useState<{ id: string; name: string; order_number?: number }[]>([]);
   const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
   const [newProcessName, setNewProcessName] = useState("");
+  const [isEditProcessesDialogOpen, setIsEditProcessesDialogOpen] = useState(false);
+  const [orderProcesses, setOrderProcesses] = useState<{ id: string; process_id: string; name: string; order_number: number }[]>([]);
 
   useEffect(() => {
     loadOrders();
@@ -264,6 +266,104 @@ const SaleOrderManagement = () => {
     setRowToDelete(null);
   };
 
+  const loadOrderProcesses = async (orderId: string) => {
+    const { data } = await supabase
+      .from("sale_order_processes")
+      .select(`
+        id,
+        process_id,
+        order_number,
+        processes (name)
+      `)
+      .eq("sale_order_id", orderId)
+      .order("order_number");
+
+    if (data) {
+      setOrderProcesses(
+        data.map((item: any) => ({
+          id: item.id,
+          process_id: item.process_id,
+          name: item.processes.name,
+          order_number: item.order_number,
+        }))
+      );
+    }
+  };
+
+  const openEditProcessesDialog = async () => {
+    if (!selectedOrder) return;
+    await loadOrderProcesses(selectedOrder);
+    setIsEditProcessesDialogOpen(true);
+  };
+
+  const moveProcessUp = async (index: number) => {
+    if (index === 0) return;
+    const newOrderProcesses = [...orderProcesses];
+    [newOrderProcesses[index], newOrderProcesses[index - 1]] = [newOrderProcesses[index - 1], newOrderProcesses[index]];
+    setOrderProcesses(newOrderProcesses);
+  };
+
+  const moveProcessDown = async (index: number) => {
+    if (index === orderProcesses.length - 1) return;
+    const newOrderProcesses = [...orderProcesses];
+    [newOrderProcesses[index], newOrderProcesses[index + 1]] = [newOrderProcesses[index + 1], newOrderProcesses[index]];
+    setOrderProcesses(newOrderProcesses);
+  };
+
+  const removeProcess = async (processLinkId: string) => {
+    const { error } = await supabase
+      .from("sale_order_processes")
+      .delete()
+      .eq("id", processLinkId);
+
+    if (error) {
+      toast.error("Failed to remove process");
+    } else {
+      toast.success("Process removed");
+      loadOrderProcesses(selectedOrder);
+    }
+  };
+
+  const addProcessToOrder = async (processId: string) => {
+    if (!selectedOrder) return;
+
+    const maxOrder = orderProcesses.length > 0 
+      ? Math.max(...orderProcesses.map(p => p.order_number)) 
+      : 0;
+
+    const { error } = await supabase
+      .from("sale_order_processes")
+      .insert({
+        sale_order_id: selectedOrder,
+        process_id: processId,
+        order_number: maxOrder + 1,
+      });
+
+    if (error) {
+      toast.error("Failed to add process");
+    } else {
+      toast.success("Process added");
+      loadOrderProcesses(selectedOrder);
+    }
+  };
+
+  const saveProcessOrder = async () => {
+    const updates = orderProcesses.map((op, index) => ({
+      id: op.id,
+      order_number: index + 1,
+    }));
+
+    for (const update of updates) {
+      await supabase
+        .from("sale_order_processes")
+        .update({ order_number: update.order_number })
+        .eq("id", update.id);
+    }
+
+    toast.success("Process order saved");
+    setIsEditProcessesDialogOpen(false);
+  };
+
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 
   return (
@@ -295,16 +395,28 @@ const SaleOrderManagement = () => {
             </Select>
 
             {selectedOrder && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOrderDialogOpen(true)}
-                className="text-xs md:text-sm"
-              >
-                <Trash2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Delete Order</span>
-                <span className="sm:hidden">Delete</span>
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openEditProcessesDialog}
+                  className="text-xs md:text-sm"
+                >
+                  <Settings className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Edit Processes</span>
+                  <span className="sm:hidden">Processes</span>
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteOrderDialogOpen(true)}
+                  className="text-xs md:text-sm"
+                >
+                  <Trash2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Delete Order</span>
+                  <span className="sm:hidden">Delete</span>
+                </Button>
+              </>
             )}
             
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -549,6 +661,84 @@ const SaleOrderManagement = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={isEditProcessesDialogOpen} onOpenChange={setIsEditProcessesDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Order Processes</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <h3 className="font-medium mb-2">Current Processes (Drag to Reorder)</h3>
+                <div className="border rounded-md divide-y">
+                  {orderProcesses.map((op, index) => (
+                    <div key={op.id} className="flex items-center justify-between p-3">
+                      <span className="font-medium">{op.name}</span>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => moveProcessUp(index)}
+                          disabled={index === 0}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => moveProcessDown(index)}
+                          disabled={index === orderProcesses.length - 1}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => removeProcess(op.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-medium mb-2">Add Process</h3>
+                <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                  {processes
+                    .filter((p) => !orderProcesses.some((op) => op.process_id === p.id))
+                    .map((process) => (
+                      <div key={process.id} className="flex items-center justify-between">
+                        <span className="text-sm">{process.name}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => addProcessToOrder(process.id)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={saveProcessOrder} className="flex-1">
+                  Save Order
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditProcessesDialogOpen(false)}
+                  className="flex-1"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -143,18 +143,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          order_number: number
           process_id: string
           sale_order_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          order_number?: number
           process_id: string
           sale_order_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          order_number?: number
           process_id?: string
           sale_order_id?: string
         }
