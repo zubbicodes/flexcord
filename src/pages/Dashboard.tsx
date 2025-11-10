@@ -12,6 +12,7 @@ interface ProductSize {
   id: string;
   sr_number: number;
   finished_size_inch: number;
+  finished_size_cm: number;
   quantity: number;
 }
 
@@ -375,7 +376,7 @@ const Dashboard = () => {
                     <TableRow key={size.id}>
                       <TableCell className="font-medium">
                         Size {size.sr_number}
-                        <div className="text-xs text-muted-foreground">{size.finished_size_inch}"</div>
+                        <div className="text-xs text-muted-foreground">{size.finished_size_inch}" / {size.finished_size_cm}cm</div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{size.quantity}</TableCell>
                       {processes.map((process) => {
