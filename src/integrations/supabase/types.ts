@@ -202,6 +202,39 @@ export type Database = {
         }
         Relationships: []
       }
+      yarn_batches: {
+        Row: {
+          batch_name: string
+          color: string
+          created_at: string | null
+          expected_output_kg: number
+          expected_output_mtr: number
+          id: string
+          quantity_kg: number
+          sale_order_id: string
+        }
+        Insert: {
+          batch_name: string
+          color: string
+          created_at?: string | null
+          expected_output_kg: number
+          expected_output_mtr: number
+          id?: string
+          quantity_kg: number
+          sale_order_id: string
+        }
+        Update: {
+          batch_name?: string
+          color?: string
+          created_at?: string | null
+          expected_output_kg?: number
+          expected_output_mtr?: number
+          id?: string
+          quantity_kg?: number
+          sale_order_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

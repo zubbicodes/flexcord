@@ -30,6 +30,15 @@ interface ProductSize {
   quantity: number;
 }
 
+interface YarnBatch {
+  id: string;
+  batch_name: string;
+  color: string;
+  quantity_kg: number;
+  expected_output_mtr: number;
+  expected_output_kg: number;
+}
+
 const SaleOrderManagement = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<SaleOrder[]>([]);
@@ -49,6 +58,20 @@ const SaleOrderManagement = () => {
   const [newProcessName, setNewProcessName] = useState("");
   const [isEditProcessesDialogOpen, setIsEditProcessesDialogOpen] = useState(false);
   const [orderProcesses, setOrderProcesses] = useState<{ id: string; process_id: string; name: string; order_number: number }[]>([]);
+  
+  // Yarn batch states
+  const [yarnBatches, setYarnBatches] = useState<YarnBatch[]>([]);
+  const [isAddYarnDialogOpen, setIsAddYarnDialogOpen] = useState(false);
+  const [yarnFormData, setYarnFormData] = useState({
+    batch_name: "",
+    color: "",
+    quantity_kg: "",
+    expected_output_mtr: "",
+    expected_output_kg: "",
+  });
+  const [editingYarnId, setEditingYarnId] = useState<string | null>(null);
+  const [deleteYarnDialogOpen, setDeleteYarnDialogOpen] = useState(false);
+  const [yarnToDelete, setYarnToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -56,7 +79,10 @@ const SaleOrderManagement = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedOrder) loadSizes();
+    if (selectedOrder) {
+      loadSizes();
+      loadYarnBatches();
+    }
   }, [selectedOrder]);
 
   const loadOrders = async () => {
@@ -79,6 +105,15 @@ const SaleOrderManagement = () => {
       .eq("sale_order_id", selectedOrder)
       .order("sr_number");
     if (data) setSizes(data);
+  };
+
+  const loadYarnBatches = async () => {
+    const { data } = await supabase
+      .from("yarn_batches")
+      .select("*")
+      .eq("sale_order_id", selectedOrder)
+      .order("created_at");
+    if (data) setYarnBatches(data);
   };
 
   const startEdit = (size: ProductSize) => {
@@ -364,6 +399,98 @@ const SaleOrderManagement = () => {
     setIsEditProcessesDialogOpen(false);
   };
 
+  const addYarnBatch = async () => {
+    if (!selectedOrder) return;
+    if (!yarnFormData.batch_name || !yarnFormData.color || !yarnFormData.quantity_kg) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    const { error } = await supabase.from("yarn_batches").insert({
+      sale_order_id: selectedOrder,
+      batch_name: yarnFormData.batch_name,
+      color: yarnFormData.color,
+      quantity_kg: parseFloat(yarnFormData.quantity_kg),
+      expected_output_mtr: parseFloat(yarnFormData.expected_output_mtr || "0"),
+      expected_output_kg: parseFloat(yarnFormData.expected_output_kg || "0"),
+    });
+
+    if (error) {
+      toast.error("Failed to add yarn batch");
+    } else {
+      toast.success("Yarn batch added successfully");
+      setIsAddYarnDialogOpen(false);
+      setYarnFormData({
+        batch_name: "",
+        color: "",
+        quantity_kg: "",
+        expected_output_mtr: "",
+        expected_output_kg: "",
+      });
+      loadYarnBatches();
+    }
+  };
+
+  const updateYarnBatch = async () => {
+    if (!editingYarnId) return;
+
+    const { error } = await supabase
+      .from("yarn_batches")
+      .update({
+        batch_name: yarnFormData.batch_name,
+        color: yarnFormData.color,
+        quantity_kg: parseFloat(yarnFormData.quantity_kg),
+        expected_output_mtr: parseFloat(yarnFormData.expected_output_mtr || "0"),
+        expected_output_kg: parseFloat(yarnFormData.expected_output_kg || "0"),
+      })
+      .eq("id", editingYarnId);
+
+    if (error) {
+      toast.error("Failed to update yarn batch");
+    } else {
+      toast.success("Yarn batch updated successfully");
+      setEditingYarnId(null);
+      setYarnFormData({
+        batch_name: "",
+        color: "",
+        quantity_kg: "",
+        expected_output_mtr: "",
+        expected_output_kg: "",
+      });
+      loadYarnBatches();
+    }
+  };
+
+  const deleteYarnBatch = async () => {
+    if (!yarnToDelete) return;
+
+    const { error } = await supabase
+      .from("yarn_batches")
+      .delete()
+      .eq("id", yarnToDelete);
+
+    if (error) {
+      toast.error("Failed to delete yarn batch");
+    } else {
+      toast.success("Yarn batch deleted successfully");
+      loadYarnBatches();
+    }
+
+    setDeleteYarnDialogOpen(false);
+    setYarnToDelete(null);
+  };
+
+  const startEditYarn = (yarn: YarnBatch) => {
+    setEditingYarnId(yarn.id);
+    setYarnFormData({
+      batch_name: yarn.batch_name,
+      color: yarn.color,
+      quantity_kg: yarn.quantity_kg.toString(),
+      expected_output_mtr: yarn.expected_output_mtr.toString(),
+      expected_output_kg: yarn.expected_output_kg.toString(),
+    });
+  };
+
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 
   return (
@@ -503,11 +630,66 @@ const SaleOrderManagement = () => {
         </Card>
 
         {selectedOrderData && (
-          <Card className="overflow-x-auto">
-            <div className="p-3 md:p-4 border-b">
-              <h2 className="text-lg md:text-2xl font-semibold">{selectedOrderData.name}</h2>
-              <p className="text-sm md:text-base text-muted-foreground">Color: {selectedOrderData.color}</p>
-            </div>
+          <>
+            <Card className="p-3 md:p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg md:text-2xl font-semibold">Yarn Management</h2>
+                <Button size="sm" onClick={() => setIsAddYarnDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Yarn Batch
+                </Button>
+              </div>
+              {yarnBatches.length > 0 ? (
+                <Table className="text-xs md:text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Batch Name</TableHead>
+                      <TableHead>Color</TableHead>
+                      <TableHead>Quantity (KG)</TableHead>
+                      <TableHead>Expected Output (MTR)</TableHead>
+                      <TableHead>Expected Output (KG)</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {yarnBatches.map((yarn) => (
+                      <TableRow key={yarn.id}>
+                        <TableCell className="font-medium">{yarn.batch_name}</TableCell>
+                        <TableCell>{yarn.color}</TableCell>
+                        <TableCell>{yarn.quantity_kg} KG</TableCell>
+                        <TableCell>{yarn.expected_output_mtr} MTR</TableCell>
+                        <TableCell>{yarn.expected_output_kg} KG</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => startEditYarn(yarn)}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setYarnToDelete(yarn.id);
+                                setDeleteYarnDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">No yarn batches added yet.</p>
+              )}
+            </Card>
+
+            <Card className="overflow-x-auto">
+              <div className="p-3 md:p-4 border-b">
+                <h2 className="text-lg md:text-2xl font-semibold">{selectedOrderData.name}</h2>
+                <p className="text-sm md:text-base text-muted-foreground">Color: {selectedOrderData.color}</p>
+              </div>
             <Table className="text-xs md:text-sm">
               <TableHeader>
                 <TableRow>
@@ -626,6 +808,7 @@ const SaleOrderManagement = () => {
               </TableBody>
             </Table>
           </Card>
+          </>
         )}
 
         <AlertDialog open={deleteOrderDialogOpen} onOpenChange={setDeleteOrderDialogOpen}>
@@ -739,6 +922,94 @@ const SaleOrderManagement = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={isAddYarnDialogOpen || editingYarnId !== null} onOpenChange={(open) => {
+          if (!open) {
+            setIsAddYarnDialogOpen(false);
+            setEditingYarnId(null);
+            setYarnFormData({
+              batch_name: "",
+              color: "",
+              quantity_kg: "",
+              expected_output_mtr: "",
+              expected_output_kg: "",
+            });
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingYarnId ? "Edit" : "Add"} Yarn Batch</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="text-sm font-medium">Batch Name</label>
+                <Input
+                  placeholder="e.g., 1st Batch"
+                  value={yarnFormData.batch_name}
+                  onChange={(e) => setYarnFormData({ ...yarnFormData, batch_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Color</label>
+                <Input
+                  placeholder="e.g., Navy"
+                  value={yarnFormData.color}
+                  onChange={(e) => setYarnFormData({ ...yarnFormData, color: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Quantity (KG)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g., 100"
+                  value={yarnFormData.quantity_kg}
+                  onChange={(e) => setYarnFormData({ ...yarnFormData, quantity_kg: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Expected Knitting Output (MTR)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g., 5000"
+                  value={yarnFormData.expected_output_mtr}
+                  onChange={(e) => setYarnFormData({ ...yarnFormData, expected_output_mtr: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Expected Knitting Output (KG)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g., 95"
+                  value={yarnFormData.expected_output_kg}
+                  onChange={(e) => setYarnFormData({ ...yarnFormData, expected_output_kg: e.target.value })}
+                />
+              </div>
+              <Button onClick={editingYarnId ? updateYarnBatch : addYarnBatch} className="w-full">
+                {editingYarnId ? "Update" : "Add"} Yarn Batch
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={deleteYarnDialogOpen} onOpenChange={setDeleteYarnDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Yarn Batch</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this yarn batch? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={deleteYarnBatch} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

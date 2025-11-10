@@ -34,6 +34,15 @@ interface ProgressData {
   };
 }
 
+interface YarnBatch {
+  id: string;
+  batch_name: string;
+  color: string;
+  quantity_kg: number;
+  expected_output_mtr: number;
+  expected_output_kg: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<SaleOrder[]>([]);
@@ -43,6 +52,8 @@ const Dashboard = () => {
   const [progressData, setProgressData] = useState<ProgressData>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
+  const [yarnBatches, setYarnBatches] = useState<YarnBatch[]>([]);
+  const [knittingProcessId, setKnittingProcessId] = useState<string | null>(null);
 
   // Color mapping for sale orders
   const getOrderColor = (color: string) => {
@@ -122,13 +133,14 @@ const Dashboard = () => {
   };
 
   const loadData = async () => {
-    const [sizesRes, orderProcessesRes, progressRes] = await Promise.all([
+    const [sizesRes, orderProcessesRes, progressRes, yarnRes] = await Promise.all([
       supabase.from("product_sizes").select("*").eq("sale_order_id", selectedOrder).order("sr_number"),
       supabase
         .from("sale_order_processes")
         .select("process_id, processes(id, name, order_number)")
         .eq("sale_order_id", selectedOrder),
       supabase.from("progress_entries").select("*"),
+      supabase.from("yarn_batches").select("*").eq("sale_order_id", selectedOrder).order("created_at"),
     ]);
 
     if (sizesRes.data) setSizes(sizesRes.data);
@@ -140,6 +152,12 @@ const Dashboard = () => {
         .filter(Boolean)
         .sort((a: any, b: any) => a.order_number - b.order_number);
       setProcesses(linkedProcesses as Process[]);
+      
+      // Find knitting process ID
+      const knittingProc = linkedProcesses.find((p: any) => 
+        p.name.toLowerCase().includes('knitting') || p.name.toLowerCase().includes('knit')
+      );
+      if (knittingProc) setKnittingProcessId((knittingProc as any).id);
     }
 
     if (progressRes.data) {
@@ -151,6 +169,9 @@ const Dashboard = () => {
       });
       setProgressData(grouped);
     }
+
+    if (yarnRes.data) setYarnBatches(yarnRes.data);
+    
     setLoading(false);
   };
 
@@ -195,6 +216,22 @@ const Dashboard = () => {
 
   const total = getTotalProgress();
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
+
+  // Calculate total yarn consumed based on knitting progress
+  const getTotalYarnConsumed = () => {
+    if (!knittingProcessId) return 0;
+    let totalKnitted = 0;
+    sizes.forEach((size) => {
+      totalKnitted += progressData[size.id]?.[knittingProcessId] || 0;
+    });
+    return totalKnitted;
+  };
+
+  const totalYarnOrdered = yarnBatches.reduce((sum, batch) => sum + batch.quantity_kg, 0);
+  const expectedTotalOutput = yarnBatches.reduce((sum, batch) => sum + batch.expected_output_kg, 0);
+  const totalKnitted = getTotalYarnConsumed();
+  const yarnConsumed = expectedTotalOutput > 0 ? (totalKnitted / expectedTotalOutput) * totalYarnOrdered : 0;
+  const yarnRemaining = totalYarnOrdered - yarnConsumed;
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
@@ -313,6 +350,56 @@ const Dashboard = () => {
             </div>
           </div>
         </Card>
+
+        {yarnBatches.length > 0 && knittingProcessId && (
+          <Card className={`p-3 md:p-6 border-l-4 ${selectedOrderData ? getOrderBorderColor(selectedOrderData.color) : 'border-gray-500'}`}>
+            <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+              <div className={`w-3 h-3 md:w-4 md:h-4 rounded-full ${selectedOrderData ? getOrderColor(selectedOrderData.color) : 'bg-gray-500'} border-2 ${selectedOrderData ? getOrderBorderColor(selectedOrderData.color) : 'border-gray-500'}`}></div>
+              <h2 className="text-lg md:text-2xl font-semibold">Yarn Tracking</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Total Yarn Ordered</span>
+                  <span className="font-semibold">{totalYarnOrdered.toFixed(2)} KG</span>
+                </div>
+                <div className="text-xs text-muted-foreground">Sum of all batches</div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Yarn Consumed</span>
+                  <span className="font-semibold">{yarnConsumed.toFixed(2)} KG</span>
+                </div>
+                <div className="text-xs text-muted-foreground">Based on knitting progress</div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Yarn Remaining</span>
+                  <span className="font-semibold">{yarnRemaining.toFixed(2)} KG</span>
+                </div>
+                <Progress value={(yarnRemaining / totalYarnOrdered) * 100} className="h-4" />
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold mb-3">Yarn Batches</h3>
+              <div className="grid gap-2">
+                {yarnBatches.map((batch) => (
+                  <div key={batch.id} className="flex items-center justify-between p-2 bg-muted rounded-md text-xs md:text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 md:w-3 md:h-3 rounded-full ${selectedOrderData ? getOrderColor(selectedOrderData.color) : 'bg-gray-500'}`}></div>
+                      <span className="font-medium">{batch.batch_name}</span>
+                      <span className="text-muted-foreground">({batch.color})</span>
+                    </div>
+                    <div className="flex gap-4 text-xs">
+                      <span>{batch.quantity_kg} KG</span>
+                      <span className="text-muted-foreground">→ {batch.expected_output_mtr} MTR / {batch.expected_output_kg} KG</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {viewMode === "grid" ? (
           <div className="grid gap-4">
