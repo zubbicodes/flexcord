@@ -113,46 +113,19 @@ const WorkerEntry = () => {
 
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-    // Check if an entry for today already exists (unique constraint on product_size_id, process_id, entry_date)
-    const { data: existing, error: selectErr } = await supabase
-      .from("progress_entries")
-      .select("id, quantity_completed")
-      .eq("product_size_id", formData.productSizeId)
-      .eq("process_id", formData.processId)
-      .eq("entry_date", today)
-      .maybeSingle();
+    // Always insert a new entry for each submission
+    const { error: insertErr } = await supabase.from("progress_entries").insert({
+      product_size_id: formData.productSizeId,
+      process_id: formData.processId,
+      quantity_completed: qty,
+      worker_name: formData.workerName,
+      notes: formData.notes || null,
+      entry_date: today,
+    });
 
-    if (selectErr) {
-      toast.error("Failed to check existing progress");
+    if (insertErr) {
+      toast.error("Failed to save progress");
       return;
-    }
-
-    if (existing) {
-      // Update by incrementing existing quantity
-      const { error: updateErr } = await supabase
-        .from("progress_entries")
-        .update({ quantity_completed: existing.quantity_completed + qty })
-        .eq("id", existing.id);
-
-      if (updateErr) {
-        toast.error("Failed to update progress");
-        return;
-      }
-    } else {
-      // Insert new row for today
-      const { error: insertErr } = await supabase.from("progress_entries").insert({
-        product_size_id: formData.productSizeId,
-        process_id: formData.processId,
-        quantity_completed: qty,
-        worker_name: formData.workerName,
-        notes: formData.notes || null,
-        entry_date: today,
-      });
-
-      if (insertErr) {
-        toast.error("Failed to save progress");
-        return;
-      }
     }
 
     toast.success("Progress saved successfully!");

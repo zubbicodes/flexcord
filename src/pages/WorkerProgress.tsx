@@ -15,7 +15,7 @@ interface ProgressEntry {
   worker_name: string;
   notes: string | null;
   process: { name: string };
-  product_size: { sr_number: number; finished_size_inch: number };
+  product_size: { sr_number: number; finished_size_inch: number; finished_size_cm: number };
   sale_order: { name: string; color: string };
 }
 
@@ -33,7 +33,7 @@ const WorkerProgress = () => {
       .select(`
         *,
         process:processes(name),
-        product_size:product_sizes(sr_number, finished_size_inch, sale_order:sale_orders(name, color))
+        product_size:product_sizes(sr_number, finished_size_inch, finished_size_cm, sale_order:sale_orders(name, color))
       `)
       .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -49,6 +49,7 @@ const WorkerProgress = () => {
         product_size: {
           sr_number: entry.product_size.sr_number,
           finished_size_inch: entry.product_size.finished_size_inch,
+          finished_size_cm: entry.product_size.finished_size_cm,
         },
         sale_order: entry.product_size.sale_order,
       }));
@@ -118,7 +119,7 @@ const WorkerProgress = () => {
                       <div className="text-xs text-muted-foreground">{entry.sale_order.color}</div>
                     </TableCell>
                     <TableCell>
-                      Size {entry.product_size.sr_number} ({entry.product_size.finished_size_inch}")
+                      Size {entry.product_size.sr_number} ({entry.product_size.finished_size_inch}" / {entry.product_size.finished_size_cm}cm)
                     </TableCell>
                     <TableCell>{entry.process.name}</TableCell>
                     <TableCell className="font-semibold">{entry.quantity_completed}</TableCell>
