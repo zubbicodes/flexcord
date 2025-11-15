@@ -28,6 +28,7 @@ interface ProductSize {
   elastic_cm: number;
   tipping_cord_size: number;
   quantity: number;
+  weight_grams: number;
 }
 
 interface YarnBatch {
@@ -198,6 +199,7 @@ const SaleOrderManagement = () => {
           elastic_cm: size.elastic_cm,
           tipping_cord_size: size.tipping_cord_size,
           quantity: size.quantity,
+          weight_grams: size.weight_grams,
         }));
 
         const { error: sizesError } = await supabase.from("product_sizes").insert(newSizes);
@@ -699,6 +701,7 @@ const SaleOrderManagement = () => {
                   <TableHead>Elastic Inch</TableHead>
                   <TableHead>Elastic CM</TableHead>
                   <TableHead>Tipping Cord Size</TableHead>
+                  <TableHead>Weight (grams)</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -758,6 +761,16 @@ const SaleOrderManagement = () => {
                         <TableCell>
                           <Input
                             type="number"
+                            step="0.01"
+                            value={editData.weight_grams || ""}
+                            onChange={(e) =>
+                              setEditData({ ...editData, weight_grams: parseFloat(e.target.value) })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
                             value={editData.quantity || ""}
                             onChange={(e) =>
                               setEditData({ ...editData, quantity: parseInt(e.target.value) })
@@ -783,6 +796,7 @@ const SaleOrderManagement = () => {
                         <TableCell>{size.elastic_inch}</TableCell>
                         <TableCell>{size.elastic_cm}</TableCell>
                         <TableCell>{size.tipping_cord_size}</TableCell>
+                        <TableCell>{size.weight_grams}g</TableCell>
                         <TableCell className="font-semibold">{size.quantity}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">

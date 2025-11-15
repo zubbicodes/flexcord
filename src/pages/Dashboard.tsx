@@ -14,6 +14,7 @@ interface ProductSize {
   finished_size_inch: number;
   finished_size_cm: number;
   quantity: number;
+  weight_grams: number;
 }
 
 interface SaleOrder {
@@ -217,20 +218,20 @@ const Dashboard = () => {
   const total = getTotalProgress();
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 
-  // Calculate total yarn consumed based on knitting progress
+  // Calculate total yarn consumed based on knitting progress and actual weight
   const getTotalYarnConsumed = () => {
     if (!knittingProcessId) return 0;
-    let totalKnitted = 0;
+    let totalWeightKg = 0;
     sizes.forEach((size) => {
-      totalKnitted += progressData[size.id]?.[knittingProcessId] || 0;
+      const completed = progressData[size.id]?.[knittingProcessId] || 0;
+      const weightGrams = size.weight_grams || 0;
+      totalWeightKg += (completed * weightGrams) / 1000; // Convert grams to kg
     });
-    return totalKnitted;
+    return totalWeightKg;
   };
 
   const totalYarnOrdered = yarnBatches.reduce((sum, batch) => sum + batch.quantity_kg, 0);
-  const expectedTotalOutput = yarnBatches.reduce((sum, batch) => sum + batch.expected_output_kg, 0);
-  const totalKnitted = getTotalYarnConsumed();
-  const yarnConsumed = expectedTotalOutput > 0 ? (totalKnitted / expectedTotalOutput) * totalYarnOrdered : 0;
+  const yarnConsumed = getTotalYarnConsumed();
   const yarnRemaining = totalYarnOrdered - yarnConsumed;
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
