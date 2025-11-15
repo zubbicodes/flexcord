@@ -50,6 +50,7 @@ export type Database = {
           sale_order_id: string
           sr_number: number
           tipping_cord_size: number
+          weight_grams: number
         }
         Insert: {
           color?: string
@@ -65,6 +66,7 @@ export type Database = {
           sale_order_id: string
           sr_number: number
           tipping_cord_size: number
+          weight_grams?: number
         }
         Update: {
           color?: string
@@ -80,6 +82,7 @@ export type Database = {
           sale_order_id?: string
           sr_number?: number
           tipping_cord_size?: number
+          weight_grams?: number
         }
         Relationships: [
           {
